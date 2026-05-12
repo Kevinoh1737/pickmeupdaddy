@@ -59,5 +59,13 @@ env.*
 *.tar.gz
 *.zip
 
+# Vercel API function build output
+api/index.mjs
+api/index.mjs.map
+api/pino-*.mjs
+api/thread-stream-worker.mjs
+api/*.map
+
 # Claude Code local state
 .claude/
+.vercel

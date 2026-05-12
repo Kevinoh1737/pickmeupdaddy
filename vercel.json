@@ -1,11 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @workspace/edu-pass run build",
+  "buildCommand": "node api/build.mjs && pnpm --filter @workspace/edu-pass run build",
   "outputDirectory": "artifacts/edu-pass/dist/public",
   "framework": null,
   "functions": {
-    "api/index.ts": {
+    "api/index.mjs": {
       "memory": 1024,
       "maxDuration": 10
     }
