@@ -2,10 +2,14 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { pool } from "@workspace/db";
 import { devAutoLogin } from "./middleware/dev-auto-login";
+
+const PgStore = connectPgSimple(session);
 
 const app: Express = express();
 app.set("trust proxy", 1);
@@ -35,6 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
   session({
+    store: new PgStore({ pool, createTableIfMissing: true }),
     secret: process.env.SESSION_SECRET || "edu-pass-dev-secret",
     resave: false,
     saveUninitialized: false,

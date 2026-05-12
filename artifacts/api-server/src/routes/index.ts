@@ -11,9 +11,11 @@ import sosRouter from "./sos";
 import notificationsRouter from "./notifications";
 import locationRouter from "./location";
 import searchRouter from "./search";
+import cronRouter from "./cron";
 
 const router: IRouter = Router();
 
+router.use(cronRouter);
 router.use(healthRouter);
 router.use(authRouter);
 router.use(familyRouter);

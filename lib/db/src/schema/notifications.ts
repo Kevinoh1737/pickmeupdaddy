@@ -18,5 +18,12 @@ export const notificationPreferencesTable = pgTable("notification_preferences", 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const sentNotificationsTable = pgTable("sent_notifications", {
+  id: serial("id").primaryKey(),
+  notificationKey: text("notification_key").notNull(),
+  sentDate: text("sent_date").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type PushSubscription = typeof pushSubscriptionsTable.$inferSelect;
 export type NotificationPreference = typeof notificationPreferencesTable.$inferSelect;
