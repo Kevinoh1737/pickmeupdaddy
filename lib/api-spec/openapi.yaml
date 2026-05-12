@@ -1,0 +1,2359 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: PickMeUpDaddy API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: family
+    description: Family management
+  - name: children
+    description: Child management
+  - name: places
+    description: Place management
+  - name: search
+    description: Place keyword search
+  - name: timeSlots
+    description: Time slot management
+  - name: mobility
+    description: Mobility / transport management
+  - name: dashboard
+    description: Dashboard and summary
+  - name: sos
+    description: SOS Toss
+  - name: planner
+    description: Smart Planner
+  - name: notifications
+    description: Push notification management
+  - name: location
+    description: Real-time family location
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteMe
+      tags: [auth]
+      summary: Delete current user account
+      responses:
+        "200":
+          description: Account deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Owner with remaining family members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/complete-onboarding:
+    post:
+      operationId: completeOnboarding
+      tags: [auth]
+      summary: Mark onboarding as completed
+      responses:
+        "200":
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/google:
+    get:
+      operationId: googleAuth
+      tags: [auth]
+      summary: Redirect to Google OAuth login
+      description: Initiates the Google OAuth 2.0 flow by redirecting to Google's authorization endpoint
+      responses:
+        "302":
+          description: Redirect to Google OAuth authorization page
+
+  /auth/google/callback:
+    get:
+      operationId: googleAuthCallback
+      tags: [auth]
+      summary: Google OAuth callback
+      description: Handles the callback from Google OAuth, exchanges code for token, and redirects to frontend
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to frontend after successful authentication
+        "400":
+          description: Invalid or missing authorization code
+
+  /auth/kakao:
+    get:
+      operationId: kakaoAuth
+      tags: [auth]
+      summary: Redirect to Kakao OAuth login
+      description: Initiates the Kakao OAuth 2.0 flow by redirecting to Kakao's authorization endpoint
+      responses:
+        "302":
+          description: Redirect to Kakao OAuth authorization page
+
+  /auth/kakao/callback:
+    get:
+      operationId: kakaoAuthCallback
+      tags: [auth]
+      summary: Kakao OAuth callback
+      description: Handles the callback from Kakao OAuth, exchanges code for token, and redirects to frontend
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to frontend after successful authentication
+        "400":
+          description: Invalid or missing authorization code
+
+  /family/invite:
+    post:
+      operationId: inviteFamily
+      tags: [family]
+      summary: Invite another user to family
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteFamilyBody"
+      responses:
+        "200":
+          description: Invitation sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilyInvitation"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /family/invite/preview:
+    get:
+      operationId: getInvitePreview
+      tags: [family]
+      summary: Get invitation preview by token (public)
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation preview info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitePreview"
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /family/invite/join:
+    post:
+      operationId: joinByInviteToken
+      tags: [family]
+      summary: Join family via invitation token (public)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinByTokenBody"
+      responses:
+        "200":
+          description: Joined successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /family/invitations:
+    get:
+      operationId: getMyInvitations
+      tags: [family]
+      summary: Get pending invitations for current user
+      responses:
+        "200":
+          description: List of invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FamilyInvitation"
+
+  /family/invitations/{id}/accept:
+    post:
+      operationId: acceptInvitation
+      tags: [family]
+      summary: Accept a family invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /family/invitations/{id}/decline:
+    post:
+      operationId: declineInvitation
+      tags: [family]
+      summary: Decline a family invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /family/members:
+    get:
+      operationId: getFamilyMembers
+      tags: [family]
+      summary: Get all family members
+      responses:
+        "200":
+          description: Family members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FamilyMember"
+
+  /family/members/{id}:
+    delete:
+      operationId: removeFamilyMember
+      tags: [family]
+      summary: Remove a family member (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "403":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Member not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /family/members/{id}/alias:
+    put:
+      operationId: setFamilyMemberAlias
+      tags: [family]
+      summary: Set a personal alias for a family member (only visible to you)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetMemberAliasBody"
+      responses:
+        "200":
+          description: Alias set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberAliasResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not same family
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteFamilyMemberAlias
+      tags: [family]
+      summary: Remove personal alias for a family member (reverts to real name)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Alias removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /children:
+    get:
+      operationId: getChildren
+      tags: [children]
+      summary: List all children for user's family
+      responses:
+        "200":
+          description: List of children
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Child"
+    post:
+      operationId: createChild
+      tags: [children]
+      summary: Create a child
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChildBody"
+      responses:
+        "201":
+          description: Child created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Child"
+
+  /children/{id}/deviation-alerts:
+    put:
+      operationId: updateChildDeviationAlerts
+      tags: [children]
+      summary: Enable or disable route deviation alerts for a child
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateChildDeviationAlertsBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Child"
+        "403":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /children/{id}/location-history:
+    get:
+      operationId: getChildLocationHistory
+      tags: [children]
+      summary: Get child's location history for the past 24 hours
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of location history points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LocationHistoryPoint"
+        "403":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /children/{id}:
+    patch:
+      operationId: updateChild
+      tags: [children]
+      summary: Update a child
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateChildBody"
+      responses:
+        "200":
+          description: Child updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Child"
+    delete:
+      operationId: deleteChild
+      tags: [children]
+      summary: Delete a child
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /family/places:
+    get:
+      operationId: getFamilyPlaces
+      tags: [places]
+      summary: List places for the current user's family
+      responses:
+        "200":
+          description: List of places
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Place"
+    post:
+      operationId: createFamilyPlace
+      tags: [places]
+      summary: Create a place for the current user's family
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlaceBody"
+      responses:
+        "201":
+          description: Place created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
+
+  /places/{id}:
+    patch:
+      operationId: updatePlace
+      tags: [places]
+      summary: Update a place
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlaceBody"
+      responses:
+        "200":
+          description: Place updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deletePlace
+      tags: [places]
+      summary: Delete a place
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /search/places:
+    get:
+      operationId: searchPlaces
+      tags: [search]
+      summary: Search places by keyword (school or academy name)
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: "Keyword to search (e.g. OO학원, OO초등학교)"
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+          description: "User latitude for distance-based sorting"
+        - name: lng
+          in: query
+          required: false
+          schema:
+            type: number
+          description: "User longitude for distance-based sorting"
+      responses:
+        "200":
+          description: List of matching places
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlaceSearchResult"
+        "400":
+          description: Query too short
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /children/{childId}/time-slots:
+    get:
+      operationId: getTimeSlots
+      tags: [timeSlots]
+      summary: List time slots for a child
+      parameters:
+        - name: childId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of time slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimeSlot"
+    post:
+      operationId: createTimeSlot
+      tags: [timeSlots]
+      summary: Create a time slot for a child
+      parameters:
+        - name: childId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTimeSlotBody"
+      responses:
+        "201":
+          description: Time slot created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeSlot"
+        "400":
+          description: Validation error or time conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /time-slots/{id}:
+    put:
+      operationId: updateTimeSlot
+      tags: [timeSlots]
+      summary: Update a time slot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTimeSlotBody"
+      responses:
+        "200":
+          description: Time slot updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeSlot"
+        "400":
+          description: Validation error or time conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Time slot not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteTimeSlot
+      tags: [timeSlots]
+      summary: Delete a time slot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: deleteAll
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: "If true, delete all time slots with same childId + placeId where startTime >= this slot's startTime"
+      responses:
+        "204":
+          description: Deleted
+
+  /time-slots/{timeSlotId}/mobility:
+    get:
+      operationId: getMobility
+      tags: [mobility]
+      summary: Get mobility setting for a time slot
+      parameters:
+        - name: timeSlotId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Mobility info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mobility"
+    put:
+      operationId: setMobility
+      tags: [mobility]
+      summary: Set or update mobility for a time slot
+      parameters:
+        - name: timeSlotId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetMobilityBody"
+      responses:
+        "200":
+          description: Mobility set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mobility"
+
+  /dashboard/today:
+    get:
+      operationId: getTodayDashboard
+      tags: [dashboard]
+      summary: Get today's pickup dashboard
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [mine, all]
+            default: mine
+          description: "mine = only slots assigned to current user, all = all family slots"
+      responses:
+        "200":
+          description: Today's dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardToday"
+
+  /dashboard/weekly:
+    get:
+      operationId: getWeeklyPlanner
+      tags: [planner]
+      summary: Get 7-day planner view
+      parameters:
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Weekly planner data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyPlanner"
+
+  /dashboard/warnings:
+    get:
+      operationId: getWarnings
+      tags: [dashboard]
+      summary: Get active overlap/gap warnings
+      responses:
+        "200":
+          description: List of warnings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduleWarning"
+
+  /dashboard/leave-at:
+    post:
+      operationId: calculateLeaveAt
+      tags: [dashboard]
+      summary: Calculate leave-at time based on parent GPS and destination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveAtRequest"
+      responses:
+        "200":
+          description: Leave at info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaveAtResponse"
+
+  /sos/toss:
+    post:
+      operationId: sosToss
+      tags: [sos]
+      summary: Toss remaining pickups to backup guardian
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SosTossBody"
+      responses:
+        "200":
+          description: SOS toss executed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SosTossResult"
+
+  /sos/toss/pending:
+    get:
+      operationId: getPendingSosTosses
+      tags: [sos]
+      summary: Get pending SOS toss requests sent to the current user
+      responses:
+        "200":
+          description: List of pending SOS toss records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SosTossRecord"
+
+  /sos/toss/{id}/accept:
+    post:
+      operationId: acceptSosToss
+      tags: [sos]
+      summary: Accept a pending SOS toss request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SOS toss accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SosTossRecord"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sos/toss/{id}/decline:
+    post:
+      operationId: declineSosToss
+      tags: [sos]
+      summary: Decline a pending SOS toss request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SOS toss declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SosTossRecord"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sos/history:
+    get:
+      operationId: getSosHistory
+      tags: [sos]
+      summary: Get SOS toss history
+      responses:
+        "200":
+          description: SOS history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SosTossRecord"
+
+  /sos/request:
+    post:
+      operationId: createSosRequest
+      tags: [sos]
+      summary: Create an SOS request for a specific time slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSosRequestBody"
+      responses:
+        "201":
+          description: SOS request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SosRequestDetail"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sos/requests/pending:
+    get:
+      operationId: getPendingSosRequests
+      tags: [sos]
+      summary: Get pending SOS requests sent to the current user
+      responses:
+        "200":
+          description: List of pending SOS requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SosRequestDetail"
+
+  /sos/requests/{id}/accept:
+    post:
+      operationId: acceptSosRequest
+      tags: [sos]
+      summary: Accept a pending SOS request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SOS request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SosRequestDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sos/requests/{id}/decline:
+    post:
+      operationId: declineSosRequest
+      tags: [sos]
+      summary: Decline a pending SOS request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SOS request declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SosRequestDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notifications/vapid-key:
+    get:
+      operationId: getVapidPublicKey
+      tags: [notifications]
+      summary: Get VAPID public key for push subscription
+      responses:
+        "200":
+          description: VAPID public key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapidKeyResponse"
+
+  /notifications/subscribe:
+    post:
+      operationId: subscribePush
+      tags: [notifications]
+      summary: Save push subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscriptionBody"
+      responses:
+        "200":
+          description: Subscription saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+    delete:
+      operationId: unsubscribePush
+      tags: [notifications]
+      summary: Remove push subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushUnsubscribeBody"
+      responses:
+        "200":
+          description: Subscription removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /notifications/preferences:
+    get:
+      operationId: getNotificationPreferences
+      tags: [notifications]
+      summary: Get notification preferences
+      responses:
+        "200":
+          description: Notification preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+    put:
+      operationId: updateNotificationPreferences
+      tags: [notifications]
+      summary: Update notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNotificationPreferencesBody"
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get summary stats (total pickups, SOS count, warnings)
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /location:
+    put:
+      operationId: updateMyLocation
+      tags: [location]
+      summary: Update my current GPS location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLocationBody"
+      responses:
+        "200":
+          description: Location updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /location/child/{childId}:
+    delete:
+      operationId: clearChildLocation
+      tags: [location]
+      summary: Remove a child's location record from this device
+      description: Deletes the family_locations row for (current user, childId). Used when switching from child mode back to guardian mode so the stale marker disappears from the map.
+      parameters:
+        - name: childId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Location record deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Invalid childId
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Child not in same family
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /family/locations:
+    get:
+      operationId: getFamilyLocations
+      tags: [location]
+      summary: Get all family members' locations
+      responses:
+        "200":
+          description: Family member locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FamilyMemberLocation"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    LocationHistoryPoint:
+      type: object
+      properties:
+        id:
+          type: integer
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        accuracy:
+          type: number
+          format: float
+          nullable: true
+        recordedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - lat
+        - lng
+        - recordedAt
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    RegisterBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        name:
+          type: string
+        phone:
+          type: string
+      required:
+        - email
+        - password
+        - name
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        phone:
+          type: ["string", "null"]
+        familyId:
+          type: ["integer", "null"]
+        role:
+          type: string
+          enum: ["owner", "guardian"]
+        onboardingCompleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - name
+        - familyId
+        - role
+        - onboardingCompleted
+        - createdAt
+
+    InviteFamilyBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+
+    FamilyInvitation:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromUserId:
+          type: integer
+        fromUserName:
+          type: string
+        toEmail:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+        token:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - fromUserId
+        - fromUserName
+        - toEmail
+        - status
+        - createdAt
+
+    InvitePreview:
+      type: object
+      properties:
+        inviterName:
+          type: string
+        inviterEmail:
+          type: string
+        toEmail:
+          type: string
+        expired:
+          type: boolean
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        isRegistered:
+          type: boolean
+      required:
+        - inviterName
+        - inviterEmail
+        - toEmail
+        - expired
+        - isRegistered
+
+    JoinByTokenBody:
+      type: object
+      properties:
+        token:
+          type: string
+        name:
+          type: string
+        password:
+          type: string
+        phone:
+          type: string
+      required:
+        - token
+
+    FamilyMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [owner, guardian]
+        alias:
+          type: ["string", "null"]
+          description: 나만 보이는 별칭 (설정하지 않은 경우 null)
+      required:
+        - id
+        - name
+        - email
+        - role
+
+    SetMemberAliasBody:
+      type: object
+      properties:
+        alias:
+          type: string
+          minLength: 1
+          maxLength: 20
+      required:
+        - alias
+
+    MemberAliasResponse:
+      type: object
+      properties:
+        alias:
+          type: string
+      required:
+        - alias
+
+    Child:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        familyId:
+          type: integer
+        deviationAlertsEnabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - familyId
+        - deviationAlertsEnabled
+        - createdAt
+
+    CreateChildBody:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+
+    UpdateChildDeviationAlertsBody:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+      required:
+        - enabled
+
+    UpdateChildBody:
+      type: object
+      properties:
+        name:
+          type: string
+
+    PlaceSearchResult:
+      type: object
+      properties:
+        placeName:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        phone:
+          type: string
+      required:
+        - placeName
+        - address
+        - lat
+        - lng
+
+    Place:
+      type: object
+      properties:
+        id:
+          type: integer
+        familyId:
+          type: integer
+        type:
+          type: string
+          enum: [school, academy, care, home]
+        placeName:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - familyId
+        - type
+        - placeName
+        - address
+        - lat
+        - lng
+        - createdAt
+
+    CreatePlaceBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [school, academy, care, home]
+        placeName:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+      required:
+        - type
+        - placeName
+
+    UpdatePlaceBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [school, academy, care, home]
+        placeName:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+
+    TimeSlot:
+      type: object
+      properties:
+        id:
+          type: integer
+        childId:
+          type: integer
+        placeId:
+          type: integer
+        placeName:
+          type: string
+        placeAddress:
+          type: string
+        placeType:
+          type: string
+          enum: [school, academy, care, home]
+        dayOfWeek:
+          type: integer
+          description: "0=Sun,1=Mon,...6=Sat"
+        startTime:
+          type: string
+          description: "HH:mm format"
+        endTime:
+          type: string
+          description: "HH:mm format"
+        primaryGuardianId:
+          type: ["integer", "null"]
+        backupGuardianId:
+          type: ["integer", "null"]
+        primaryGuardianName:
+          type: ["string", "null"]
+        backupGuardianName:
+          type: ["string", "null"]
+        mobilityType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, parent_accompany, null]
+        shuttleArrivalTime:
+          type: ["string", "null"]
+          description: "HH:mm format — shuttle bus expected arrival time"
+        parentAccompany:
+          type: boolean
+        dropOffType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+          description: "데려다 주기 방법 (등원)"
+        dropOffGuardianId:
+          type: ["integer", "null"]
+          description: "등원 담당 보호자 ID (dropOffType=parent일 때)"
+        dropOffGuardianName:
+          type: ["string", "null"]
+          description: "등원 담당 보호자 이름"
+        pickUpType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+          description: "데려오기 방법 (하원)"
+        pickUpShuttleArrivalTime:
+          type: ["string", "null"]
+          description: "HH:mm format — 데려오기 셔틀 도착 시간"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - childId
+        - placeId
+        - placeName
+        - placeAddress
+        - placeType
+        - dayOfWeek
+        - startTime
+        - endTime
+        - parentAccompany
+        - createdAt
+
+    CreateTimeSlotBody:
+      type: object
+      properties:
+        placeId:
+          type: integer
+        dayOfWeek:
+          type: integer
+          description: "0=Sun,1=Mon,...6=Sat"
+        startTime:
+          type: string
+        endTime:
+          type: string
+        primaryGuardianId:
+          type: ["integer", "null"]
+        backupGuardianId:
+          type: ["integer", "null"]
+        mobilityType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, parent_accompany, null]
+        shuttleArrivalTime:
+          type: ["string", "null"]
+          description: "HH:mm format — shuttle bus expected arrival time"
+        parentAccompany:
+          type: boolean
+        dropOffType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+          description: "데려다 주기 방법 (등원)"
+        dropOffGuardianId:
+          type: ["integer", "null"]
+          description: "등원 담당 보호자 ID (dropOffType=parent일 때)"
+        pickUpType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+          description: "데려오기 방법 (하원)"
+        pickUpShuttleArrivalTime:
+          type: ["string", "null"]
+          description: "HH:mm format — 데려오기 셔틀 도착 시간"
+      required:
+        - placeId
+        - dayOfWeek
+        - startTime
+        - endTime
+
+    UpdateTimeSlotBody:
+      type: object
+      properties:
+        startTime:
+          type: string
+        endTime:
+          type: string
+        primaryGuardianId:
+          type: ["integer", "null"]
+        backupGuardianId:
+          type: ["integer", "null"]
+        mobilityType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, parent_accompany, null]
+        shuttleArrivalTime:
+          type: ["string", "null"]
+          description: "HH:mm format — shuttle bus expected arrival time"
+        parentAccompany:
+          type: boolean
+        dropOffType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+          description: "데려다 주기 방법 (등원)"
+        dropOffGuardianId:
+          type: ["integer", "null"]
+          description: "등원 담당 보호자 ID (dropOffType=parent일 때)"
+        pickUpType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+          description: "데려오기 방법 (하원)"
+        pickUpShuttleArrivalTime:
+          type: ["string", "null"]
+          description: "HH:mm format — 데려오기 셔틀 도착 시간"
+      required:
+        - startTime
+        - endTime
+
+    ScheduleWarning:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [overlap, gap_too_short]
+        message:
+          type: string
+        timeSlotId:
+          type: integer
+        conflictTimeSlotId:
+          type: ["integer", "null"]
+        gapMinutes:
+          type: ["integer", "null"]
+        requiredMinutes:
+          type: ["integer", "null"]
+      required:
+        - id
+        - type
+        - message
+        - timeSlotId
+
+    Mobility:
+      type: object
+      properties:
+        id:
+          type: integer
+        timeSlotId:
+          type: integer
+        type:
+          type: string
+          enum: [shuttle, parent]
+        guardianId:
+          type: ["integer", "null"]
+        guardianName:
+          type: ["string", "null"]
+      required:
+        - id
+        - timeSlotId
+        - type
+
+    SetMobilityBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [shuttle, parent]
+        guardianId:
+          type: ["integer", "null"]
+      required:
+        - type
+
+    DashboardToday:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        totalPickups:
+          type: integer
+        completedPickups:
+          type: integer
+        activeWarnings:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardItem"
+      required:
+        - date
+        - totalPickups
+        - completedPickups
+        - activeWarnings
+        - items
+
+    DashboardItem:
+      type: object
+      properties:
+        timeSlotId:
+          type: integer
+        childName:
+          type: string
+        placeName:
+          type: string
+        address:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        mobilityType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+        dropOffType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+          description: "등원 방식"
+        pickUpType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+          description: "하원 방식"
+        myRole:
+          type: ["string", "null"]
+          enum: [dropOff, pickUp, both, null]
+          description: "현재 사용자의 역할 (mine 필터 시에만 의미 있음)"
+        guardianId:
+          type: ["integer", "null"]
+        guardianName:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [upcoming, in_progress, completed, warning]
+        warning:
+          type: ["string", "null"]
+      required:
+        - timeSlotId
+        - childName
+        - placeName
+        - address
+        - startTime
+        - endTime
+        - status
+
+    WeeklyPlanner:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannerDay"
+      required:
+        - startDate
+        - endDate
+        - days
+
+    PlannerDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        dayOfWeek:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannerItem"
+      required:
+        - date
+        - dayOfWeek
+        - items
+
+    PlannerItem:
+      type: object
+      properties:
+        timeSlotId:
+          type: integer
+        childName:
+          type: string
+        placeName:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        type:
+          type: string
+          enum: [school, academy, care, home]
+        mobilityType:
+          type: ["string", "null"]
+          enum: [shuttle, parent, null]
+        guardianName:
+          type: ["string", "null"]
+        hasWarning:
+          type: boolean
+        warningMessage:
+          type: ["string", "null"]
+      required:
+        - timeSlotId
+        - childName
+        - placeName
+        - startTime
+        - endTime
+        - type
+        - hasWarning
+
+    LeaveAtRequest:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        timeSlotId:
+          type: integer
+      required:
+        - latitude
+        - longitude
+        - timeSlotId
+
+    LeaveAtResponse:
+      type: object
+      properties:
+        timeSlotId:
+          type: integer
+        placeName:
+          type: string
+        estimatedMinutes:
+          type: integer
+        leaveByTime:
+          type: string
+        arrivalTime:
+          type: string
+        shouldLeaveNow:
+          type: boolean
+        message:
+          type: string
+      required:
+        - timeSlotId
+        - placeName
+        - estimatedMinutes
+        - leaveByTime
+        - arrivalTime
+        - shouldLeaveNow
+        - message
+
+    SosTossBody:
+      type: object
+      properties:
+        targetGuardianId:
+          type: integer
+        message:
+          type: ["string", "null"]
+      required:
+        - targetGuardianId
+
+    SosTossResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromGuardianId:
+          type: integer
+        toGuardianId:
+          type: integer
+        transferredSchedules:
+          type: integer
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+        message:
+          type: ["string", "null"]
+        pendingSlotIds:
+          type: array
+          items:
+            type: integer
+        createdAt:
+          type: string
+          format: date-time
+        respondedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - fromGuardianId
+        - toGuardianId
+        - transferredSchedules
+        - status
+        - createdAt
+
+    SosTossRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromGuardianId:
+          type: integer
+        fromGuardianName:
+          type: string
+        toGuardianId:
+          type: integer
+        toGuardianName:
+          type: string
+        transferredSchedules:
+          type: integer
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+        message:
+          type: ["string", "null"]
+        pendingSlotIds:
+          type: array
+          items:
+            type: integer
+        createdAt:
+          type: string
+          format: date-time
+        respondedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - fromGuardianId
+        - fromGuardianName
+        - toGuardianId
+        - toGuardianName
+        - transferredSchedules
+        - status
+        - createdAt
+
+    CreateSosRequestBody:
+      type: object
+      properties:
+        timeSlotId:
+          type: integer
+        toUserId:
+          type: integer
+        message:
+          type: ["string", "null"]
+      required:
+        - timeSlotId
+        - toUserId
+
+    SosRequestDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromUserId:
+          type: integer
+        fromUserName:
+          type: string
+        toUserId:
+          type: integer
+        toUserName:
+          type: string
+        timeSlotId:
+          type: integer
+        childName:
+          type: string
+        placeName:
+          type: string
+        address:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        dayOfWeek:
+          type: integer
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+        message:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        respondedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - fromUserId
+        - fromUserName
+        - toUserId
+        - toUserName
+        - timeSlotId
+        - childName
+        - placeName
+        - address
+        - startTime
+        - endTime
+        - dayOfWeek
+        - status
+        - createdAt
+
+    VapidKeyResponse:
+      type: object
+      properties:
+        publicKey:
+          type: string
+      required:
+        - publicKey
+
+    PushSubscriptionBody:
+      type: object
+      properties:
+        endpoint:
+          type: string
+        p256dh:
+          type: string
+        auth:
+          type: string
+      required:
+        - endpoint
+        - p256dh
+        - auth
+
+    PushUnsubscribeBody:
+      type: object
+      properties:
+        endpoint:
+          type: string
+      required:
+        - endpoint
+
+    NotificationPreferences:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        minutesBefore:
+          type: integer
+      required:
+        - enabled
+        - minutesBefore
+
+    UpdateNotificationPreferencesBody:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        minutesBefore:
+          type: integer
+      required:
+        - enabled
+        - minutesBefore
+
+    DashboardStats:
+      type: object
+      properties:
+        totalChildren:
+          type: integer
+        totalSchedules:
+          type: integer
+        todayPickups:
+          type: integer
+        activeWarnings:
+          type: integer
+        sosCount:
+          type: integer
+        familyMembers:
+          type: integer
+      required:
+        - totalChildren
+        - totalSchedules
+        - todayPickups
+        - activeWarnings
+        - sosCount
+        - familyMembers
+
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+
+    UpdateLocationBody:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        accuracy:
+          type: number
+          nullable: true
+        childId:
+          type: integer
+          nullable: true
+      required:
+        - lat
+        - lng
+
+    FamilyMemberLocation:
+      type: object
+      properties:
+        userId:
+          type: integer
+        childId:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        lat:
+          type: number
+        lng:
+          type: number
+        accuracy:
+          type: number
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+        isMe:
+          type: boolean
+      required:
+        - userId
+        - childId
+        - name
+        - avatarUrl
+        - lat
+        - lng
+        - accuracy
+        - updatedAt
+        - isMe

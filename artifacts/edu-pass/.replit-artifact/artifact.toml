@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "에듀-패스 (Edu-Pass)"
+version = "1.0.0"
+id = "artifacts/edu-pass"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25657
+
+[services.development]
+run = "pnpm --filter @workspace/edu-pass run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/edu-pass", "run", "build" ]
+publicDir = "artifacts/edu-pass/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25657"
+BASE_PATH = "/"

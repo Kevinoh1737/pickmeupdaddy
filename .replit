@@ -1,0 +1,35 @@
+modules = ["nodejs-24", "postgresql-16"]
+
+[[artifacts]]
+id = "artifacts/api-server"
+
+[[artifacts]]
+id = "artifacts/mockup-sandbox"
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BNT8XS4RrHmIgGwE4qrSOei3pRO3aRwDVcQ8bcz3QhwJrCsA0we4SbjM4VvCx12dvFnxmHpb8Ptm5hMf2lD7XB4"
+RESEND_FROM_EMAIL = "픽미업대디 <noreply@pickmeupdaddy.com>"
+
+[nix]
+channel = "stable-25_05"

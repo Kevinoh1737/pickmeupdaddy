@@ -1,0 +1,28 @@
+{
+  "name": "PickMeUpDaddy",
+  "short_name": "PickMeUp",
+  "description": "우리 아이 등하교·학원 일정을 한눈에 관리하는 가족 모빌리티 OS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#005da7",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
