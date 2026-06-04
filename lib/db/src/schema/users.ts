@@ -12,6 +12,7 @@ export const usersTable = pgTable("users", {
   role: text("role").notNull().default("guardian"),
   googleId: text("google_id").unique(),
   kakaoId: text("kakao_id").unique(),
+  naverId: text("naver_id").unique(),
   avatarUrl: text("avatar_url"),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

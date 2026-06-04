@@ -10,6 +10,7 @@ declare module "express-session" {
     userId: number;
     googleOAuthState?: string;
     kakaoOAuthState?: string;
+    naverOAuthState?: string;
     pendingInviteToken?: string;
   }
 }
@@ -62,6 +63,9 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 const KAKAO_CLIENT_ID = process.env.KAKAO_REST_API_KEY;
 const KAKAO_CLIENT_SECRET = process.env.KAKAO_CLIENT_SECRET;
+
+const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID;
+const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
 
 function getGoogleRedirectUri(req?: { get(name: string): string | undefined }): string {
   const host = req?.get("host");
@@ -735,6 +739,266 @@ router.get("/auth/kakao/callback", async (req, res): Promise<void> => {
     });
   } catch (err) {
     console.error("Kakao OAuth callback error:", err);
+    res.redirect(`${loginUrl}?error=server_error`);
+  }
+});
+
+function getNaverRedirectUri(req?: { get(name: string): string | undefined }): string {
+  const host = req?.get("host");
+  if (host) {
+    const proto = req?.get("x-forwarded-proto") || "https";
+    return `${proto}://${host}/api/auth/naver/callback`;
+  }
+  const domain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS?.split(",")[0] || "localhost";
+  return `https://${domain}/api/auth/naver/callback`;
+}
+
+router.get("/auth/naver", (req, res): void => {
+  if (!NAVER_CLIENT_ID) {
+    res.status(500).json({ error: "Naver OAuth가 설정되지 않았습니다" });
+    return;
+  }
+
+  const inviteToken = typeof req.query.invite_token === "string" ? req.query.invite_token : undefined;
+  if (inviteToken) {
+    req.session.pendingInviteToken = inviteToken;
+  } else {
+    delete req.session.pendingInviteToken;
+  }
+
+  const state = randomBytes(32).toString("hex");
+  req.session.naverOAuthState = state;
+
+  const params = new URLSearchParams({
+    client_id: NAVER_CLIENT_ID,
+    redirect_uri: getNaverRedirectUri(req),
+    response_type: "code",
+    state,
+  });
+
+  const redirectUrl = `https://nid.naver.com/oauth2.0/authorize?${params.toString()}`;
+  req.session.save(() => {
+    res.redirect(redirectUrl);
+  });
+});
+
+router.get("/auth/naver/callback", async (req, res): Promise<void> => {
+  const frontendBase = (process.env.BASE_PATH || "/").replace(/\/$/, "") + "/";
+  const loginUrl = `${frontendBase}login`;
+
+  try {
+    if (!NAVER_CLIENT_ID || !NAVER_CLIENT_SECRET) {
+      res.redirect(`${loginUrl}?error=naver_not_configured`);
+      return;
+    }
+
+    const { code, state } = req.query;
+
+    if (!code || typeof code !== "string") {
+      res.redirect(`${loginUrl}?error=no_code`);
+      return;
+    }
+
+    if (!state || state !== req.session.naverOAuthState) {
+      res.redirect(`${loginUrl}?error=invalid_state`);
+      return;
+    }
+
+    delete req.session.naverOAuthState;
+
+    const tokenUrl = new URL("https://nid.naver.com/oauth2.0/token");
+    tokenUrl.searchParams.append("grant_type", "authorization_code");
+    tokenUrl.searchParams.append("client_id", NAVER_CLIENT_ID);
+    tokenUrl.searchParams.append("client_secret", NAVER_CLIENT_SECRET);
+    tokenUrl.searchParams.append("code", code);
+    tokenUrl.searchParams.append("state", state as string);
+
+    const tokenRes = await fetch(tokenUrl.toString(), {
+      method: "GET",
+    });
+
+    const tokenData = await tokenRes.json() as any;
+
+    if (!tokenRes.ok || tokenData.error || !tokenData.access_token) {
+      console.error("Naver token exchange failed:", tokenRes.status, tokenData);
+      res.redirect(`${loginUrl}?error=token_exchange_failed`);
+      return;
+    }
+
+    const userInfoRes = await fetch("https://openapi.naver.com/v1/nid/me", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+
+    if (!userInfoRes.ok) {
+      const errText = await userInfoRes.text().catch(() => "");
+      console.error("Naver user info fetch failed:", userInfoRes.status, errText);
+      res.redirect(`${loginUrl}?error=userinfo_failed`);
+      return;
+    }
+
+    const naverData = await userInfoRes.json() as {
+      response: {
+        id: string;
+        email?: string;
+        name?: string;
+        profile_image?: string;
+      };
+    };
+
+    const naverId = naverData.response?.id;
+    const email = naverData.response?.email;
+    const name = naverData.response?.name || "네이버 사용자";
+    const avatarUrl = naverData.response?.profile_image || null;
+
+    if (!naverId) {
+      console.error("Naver user data missing ID:", naverData);
+      res.redirect(`${loginUrl}?error=userinfo_failed`);
+      return;
+    }
+
+    const pendingInviteToken = req.session.pendingInviteToken;
+    delete req.session.pendingInviteToken;
+
+    let [existingUser] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.naverId, naverId));
+
+    if (!existingUser) {
+      if (!email) {
+        console.error("Naver user data missing email (required for signup):", naverData);
+        if (pendingInviteToken) {
+          res.redirect(`${frontendBase}join?token=${pendingInviteToken}&error=no_email`);
+        } else {
+          res.redirect(`${loginUrl}?error=userinfo_failed`);
+        }
+        return;
+      }
+
+      const [emailUser] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, email));
+
+      if (emailUser) {
+        if (emailUser.passwordHash) {
+          res.redirect(`${loginUrl}?error=email_already_exists`);
+          return;
+        }
+        await db
+          .update(usersTable)
+          .set({
+            naverId,
+            ...(avatarUrl && emailUser.avatarUrl !== avatarUrl ? { avatarUrl } : {}),
+          })
+          .where(eq(usersTable.id, emailUser.id));
+
+        if (pendingInviteToken) {
+          const joinErrBase = `${frontendBase}join?token=${pendingInviteToken}`;
+          const { error } = await applyPendingInvite(emailUser.id, emailUser.email, pendingInviteToken);
+          if (error) {
+            req.session.userId = emailUser.id;
+            req.session.save(() => res.redirect(`${joinErrBase}&error=${error}`));
+            return;
+          }
+        }
+
+        req.session.userId = emailUser.id;
+        req.session.save(() => res.redirect(frontendBase));
+        return;
+      }
+
+      if (pendingInviteToken) {
+        const joinErrBase = `${frontendBase}join?token=${pendingInviteToken}`;
+        const [invitation] = await db
+          .select()
+          .from(invitationsTable)
+          .where(eq(invitationsTable.token, pendingInviteToken));
+
+        if (!invitation || invitation.status !== "pending") {
+          res.redirect(`${joinErrBase}&error=invalid_invite`);
+          return;
+        }
+        if (invitation.expiresAt && invitation.expiresAt < new Date()) {
+          res.redirect(`${joinErrBase}&error=expired`);
+          return;
+        }
+        if (invitation.toEmail.toLowerCase() !== email.toLowerCase()) {
+          res.redirect(`${joinErrBase}&error=email_mismatch`);
+          return;
+        }
+
+        const [fromUser] = await db.select().from(usersTable).where(eq(usersTable.id, invitation.fromUserId));
+        if (!fromUser?.familyId) {
+          res.redirect(`${joinErrBase}&error=invalid_invite`);
+          return;
+        }
+
+        const [newGuardian] = await db
+          .insert(usersTable)
+          .values({
+            email,
+            name,
+            naverId,
+            avatarUrl,
+            familyId: fromUser.familyId,
+            role: "guardian",
+            onboardingCompleted: true,
+          })
+          .returning();
+        existingUser = newGuardian;
+
+        await db.update(invitationsTable)
+          .set({ status: "accepted" })
+          .where(eq(invitationsTable.id, invitation.id));
+      } else {
+        const [family] = await db.insert(familiesTable).values({}).returning();
+        const [newOwner] = await db
+          .insert(usersTable)
+          .values({
+            email,
+            name,
+            naverId,
+            avatarUrl,
+            familyId: family.id,
+            role: "owner",
+          })
+          .returning();
+        existingUser = newOwner;
+
+        req.session.userId = existingUser.id;
+        req.session.save(() => {
+          res.redirect(`${frontendBase}onboarding`);
+        });
+        return;
+      }
+    } else {
+      if (avatarUrl && existingUser.avatarUrl !== avatarUrl) {
+        await db
+          .update(usersTable)
+          .set({ avatarUrl })
+          .where(eq(usersTable.id, existingUser.id));
+      }
+
+      if (pendingInviteToken) {
+        const joinErrBase = `${frontendBase}join?token=${pendingInviteToken}`;
+        const { error } = await applyPendingInvite(existingUser.id, existingUser.email, pendingInviteToken);
+        if (error) {
+          req.session.userId = existingUser.id;
+          req.session.save(() => {
+            res.redirect(`${joinErrBase}&error=${error}`);
+          });
+          return;
+        }
+      }
+    }
+
+    req.session.userId = existingUser.id;
+    req.session.save(() => {
+      res.redirect(frontendBase);
+    });
+  } catch (err) {
+    console.error("Naver OAuth callback error:", err);
     res.redirect(`${loginUrl}?error=server_error`);
   }
 });

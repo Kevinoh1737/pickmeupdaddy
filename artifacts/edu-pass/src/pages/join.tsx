@@ -62,6 +62,15 @@ function OAuthButtons({ token }: { token: string }) {
         </svg>
         카카오로 시작하기
       </a>
+      <a
+        href={`${apiBase}/api/auth/naver?invite_token=${encodeURIComponent(token)}`}
+        className="flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-[#03C75A] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#02b351] transition-colors"
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z" fill="white"/>
+        </svg>
+        네이버로 시작하기
+      </a>
     </div>
   );
 }

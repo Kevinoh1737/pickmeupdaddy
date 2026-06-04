@@ -240,6 +240,39 @@ paths:
         "400":
           description: Invalid or missing authorization code
 
+  /auth/naver:
+    get:
+      operationId: naverAuth
+      tags: [auth]
+      summary: Redirect to Naver OAuth login
+      description: Initiates the Naver OAuth 2.0 flow by redirecting to Naver's authorization endpoint
+      responses:
+        "302":
+          description: Redirect to Naver OAuth authorization page
+
+  /auth/naver/callback:
+    get:
+      operationId: naverAuthCallback
+      tags: [auth]
+      summary: Naver OAuth callback
+      description: Handles the callback from Naver OAuth, exchanges code for token, and redirects to frontend
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to frontend after successful authentication
+        "400":
+          description: Invalid or missing authorization code
+
   /family/invite:
     post:
       operationId: inviteFamily

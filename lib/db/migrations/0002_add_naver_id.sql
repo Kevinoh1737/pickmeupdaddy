@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN naver_id TEXT UNIQUE;

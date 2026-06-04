@@ -29,6 +29,14 @@ function KakaoIcon({ className }: { className?: string }) {
   );
 }
 
+function NaverIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z" fill="white"/>
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -46,6 +54,7 @@ export default function LoginPage() {
       const messages: Record<string, string> = {
         google_not_configured: "Google 로그인이 설정되지 않았습니다",
         kakao_not_configured: "카카오 로그인이 설정되지 않았습니다",
+        naver_not_configured: "네이버 로그인이 설정되지 않았습니다",
         no_code: "인증 코드를 받지 못했습니다",
         invalid_state: "보안 검증에 실패했습니다. 다시 시도해주세요",
         token_exchange_failed: "소셜 로그인 인증에 실패했습니다",
@@ -99,6 +108,10 @@ export default function LoginPage() {
     window.location.href = `${import.meta.env.BASE_URL}api/auth/kakao`.replace(/\/\//g, "/");
   };
 
+  const handleNaverLogin = () => {
+    window.location.href = `${import.meta.env.BASE_URL}api/auth/naver`.replace(/\/\//g, "/");
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -121,6 +134,17 @@ export default function LoginPage() {
             >
               <KakaoIcon className="w-5 h-5" />
               카카오로 시작하기
+            </button>
+
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-md font-medium text-sm mb-3 transition-opacity hover:opacity-90 active:opacity-80"
+              style={{ backgroundColor: "#03C75A", color: "#ffffff" }}
+              onClick={handleNaverLogin}
+              data-testid="button-naver-login"
+            >
+              <NaverIcon className="w-5 h-5" />
+              네이버로 시작하기
             </button>
 
             <Button
