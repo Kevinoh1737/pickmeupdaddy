@@ -60,11 +60,11 @@ env.*
 *.zip
 
 # Vercel API function build output
-api/index.mjs
-api/index.mjs.map
-api/pino-*.mjs
-api/thread-stream-worker.mjs
-api/*.map
+apifn/index.mjs
+apifn/index.mjs.map
+apifn/pino-*.mjs
+apifn/thread-stream-worker.mjs
+apifn/*.map
 
 # Claude Code local state
 .claude/

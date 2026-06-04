@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const apiDir = path.resolve(rootDir, "api");
+const apiDir = path.resolve(rootDir, "apifn");
 
 await esbuild({
   entryPoints: [path.resolve(apiDir, "_handler.ts")],

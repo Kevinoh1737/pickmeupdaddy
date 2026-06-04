@@ -6,7 +6,7 @@ const root = process.cwd();
 const outputDir = path.join(root, ".vercel", "output");
 
 console.log("=== Building API function ===");
-execSync("node api/build.mjs", { stdio: "inherit", cwd: root });
+execSync("node apifn/build.mjs", { stdio: "inherit", cwd: root });
 
 console.log("=== Building frontend ===");
 execSync("pnpm --filter @workspace/edu-pass run build", { stdio: "inherit", cwd: root });
@@ -23,7 +23,7 @@ cpSync(
 );
 
 cpSync(
-  path.join(root, "api", "index.mjs"),
+  path.join(root, "apifn", "index.mjs"),
   path.join(outputDir, "functions", "api.func", "index.mjs")
 );
 
