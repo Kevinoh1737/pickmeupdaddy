@@ -13,7 +13,9 @@ if (!process.env.DATABASE_URL) {
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: process.env.VERCEL ? 1 : 10,
-  ssl: process.env.DATABASE_URL?.includes("supabase.co")
+  // Matches both the direct host (db.*.supabase.co) and the Supavisor pooler
+  // (*.pooler.supabase.com); both present Supabase's self-signed cert chain.
+  ssl: process.env.DATABASE_URL?.includes("supabase.")
     ? { rejectUnauthorized: false }
     : undefined,
 });

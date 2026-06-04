@@ -2,12 +2,19 @@ import pg from "pg";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL must be set");
+// Migrations run heavy DDL — use the direct/session connection, not the
+// transaction pooler (which DATABASE_URL points at for the serverless runtime).
+const migrationUrl = process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL;
+
+if (!migrationUrl) {
+  console.error("DATABASE_URL_DIRECT or DATABASE_URL must be set");
   process.exit(1);
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: migrationUrl,
+  ssl: migrationUrl.includes("supabase.") ? { rejectUnauthorized: false } : undefined,
+});
 
 async function run() {
   const client = await pool.connect();
