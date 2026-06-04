@@ -8,3 +8,4 @@ export * from "./sos-toss";
 export * from "./notifications";
 export * from "./locations";
 export * from "./aliases";
+export * from "./deleted-accounts";

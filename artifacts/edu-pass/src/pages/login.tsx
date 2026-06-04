@@ -51,6 +51,7 @@ export default function LoginPage() {
     const params = new URLSearchParams(search);
     const error = params.get("error");
     if (error) {
+      const until = params.get("until");
       const messages: Record<string, string> = {
         google_not_configured: "Google 로그인이 설정되지 않았습니다",
         kakao_not_configured: "카카오 로그인이 설정되지 않았습니다",
@@ -60,10 +61,13 @@ export default function LoginPage() {
         token_exchange_failed: "소셜 로그인 인증에 실패했습니다",
         userinfo_failed: "사용자 정보를 가져올 수 없습니다",
         email_already_exists: "이미 이메일/비밀번호로 등록된 계정입니다. 이메일로 로그인해주세요",
+        recently_deleted: until
+          ? `탈퇴한 계정입니다. ${until} 이후에 다시 가입할 수 있습니다`
+          : "탈퇴한 계정입니다. 일정 기간 후 다시 가입할 수 있습니다",
         server_error: "서버 오류가 발생했습니다",
       };
       toast({
-        title: "소셜 로그인 실패",
+        title: error === "recently_deleted" ? "가입할 수 없습니다" : "소셜 로그인 실패",
         description: messages[error] || "알 수 없는 오류가 발생했습니다",
         variant: "destructive",
       });

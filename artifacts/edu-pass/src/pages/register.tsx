@@ -57,8 +57,15 @@ export default function RegisterPage() {
           await queryClient.refetchQueries({ queryKey: getGetMeQueryKey() });
           setLocation("/onboarding");
         },
-        onError: () => {
-          toast({ title: "회원가입 실패", description: "입력 정보를 확인하고 다시 시도해주세요", variant: "destructive" });
+        onError: (err: unknown) => {
+          let message = "입력 정보를 확인하고 다시 시도해주세요";
+          if (err instanceof Error && "data" in err) {
+            const apiErr = err as Error & { data?: { error?: string } | null };
+            if (apiErr.data?.error) {
+              message = apiErr.data.error;
+            }
+          }
+          toast({ title: "회원가입 실패", description: message, variant: "destructive" });
         },
       }
     );

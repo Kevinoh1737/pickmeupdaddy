@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ne, or } from "drizzle-orm";
-import { db, usersTable, familiesTable, pushSubscriptionsTable, notificationPreferencesTable, invitationsTable, sosTossTable, sosRequestsTable } from "@workspace/db";
+import { eq, and, ne, or, gt } from "drizzle-orm";
+import { db, usersTable, familiesTable, pushSubscriptionsTable, notificationPreferencesTable, invitationsTable, sosTossTable, sosRequestsTable, deletedAccountsTable } from "@workspace/db";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { randomBytes } from "crypto";
@@ -67,6 +67,46 @@ const KAKAO_CLIENT_SECRET = process.env.KAKAO_CLIENT_SECRET;
 const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID;
 const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
 
+// Cooling-off window: a withdrawn (회원탈퇴) identity cannot sign up again
+// until this many days have passed since deletion.
+const REJOIN_COOLDOWN_DAYS = 30;
+const REJOIN_COOLDOWN_MS = REJOIN_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+
+// Returns the date the identity may sign up again, or null if not blocked.
+async function getRejoinBlockUntil(identity: {
+  email?: string | null;
+  googleId?: string | null;
+  kakaoId?: string | null;
+  naverId?: string | null;
+}): Promise<Date | null> {
+  const conds = [];
+  if (identity.email) conds.push(eq(deletedAccountsTable.email, identity.email));
+  if (identity.googleId) conds.push(eq(deletedAccountsTable.googleId, identity.googleId));
+  if (identity.kakaoId) conds.push(eq(deletedAccountsTable.kakaoId, identity.kakaoId));
+  if (identity.naverId) conds.push(eq(deletedAccountsTable.naverId, identity.naverId));
+  if (conds.length === 0) return null;
+
+  const cutoff = new Date(Date.now() - REJOIN_COOLDOWN_MS);
+  const rows = await db
+    .select()
+    .from(deletedAccountsTable)
+    .where(and(or(...conds), gt(deletedAccountsTable.deletedAt, cutoff)));
+
+  if (rows.length === 0) return null;
+
+  // Earliest re-join = most recent deletion + cooldown.
+  const latest = rows.reduce(
+    (max, r) => (r.deletedAt > max ? r.deletedAt : max),
+    rows[0].deletedAt
+  );
+  return new Date(latest.getTime() + REJOIN_COOLDOWN_MS);
+}
+
+// Format a Date as a KST (UTC+9) YYYY-MM-DD string for user-facing messages.
+function formatRejoinDate(d: Date): string {
+  return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 function getGoogleRedirectUri(req?: { get(name: string): string | undefined }): string {
   const host = req?.get("host");
   if (host) {
@@ -91,6 +131,14 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (existing.length > 0) {
     res.status(400).json({ error: "Email already registered" });
+    return;
+  }
+
+  const rejoinUntil = await getRejoinBlockUntil({ email });
+  if (rejoinUntil) {
+    res.status(403).json({
+      error: `탈퇴한 계정입니다. ${formatRejoinDate(rejoinUntil)} 이후에 다시 가입할 수 있습니다`,
+    });
     return;
   }
 
@@ -242,6 +290,16 @@ router.delete("/auth/me", async (req, res): Promise<void> => {
     );
     await tx.delete(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.userId, userId));
     await tx.delete(notificationPreferencesTable).where(eq(notificationPreferencesTable.userId, userId));
+
+    // Record a tombstone so the same identity can't immediately re-register
+    // (cooling-off period enforced at signup via getRejoinBlockUntil).
+    await tx.insert(deletedAccountsTable).values({
+      email: user.email,
+      googleId: user.googleId,
+      kakaoId: user.kakaoId,
+      naverId: user.naverId,
+    });
+
     await tx.delete(usersTable).where(eq(usersTable.id, userId));
 
     if (familyId) {
@@ -365,6 +423,12 @@ router.get("/auth/google/callback", async (req, res): Promise<void> => {
       .where(eq(usersTable.googleId, googleUser.id));
 
     if (!existingUser) {
+      const rejoinUntil = await getRejoinBlockUntil({ email: googleUser.email, googleId: googleUser.id });
+      if (rejoinUntil) {
+        res.redirect(`${loginUrl}?error=recently_deleted&until=${formatRejoinDate(rejoinUntil)}`);
+        return;
+      }
+
       const [emailConflict] = await db
         .select()
         .from(usersTable)
@@ -603,6 +667,12 @@ router.get("/auth/kakao/callback", async (req, res): Promise<void> => {
     if (!existingUser) {
       if (!kakaoUser.id) {
         res.redirect(`${loginUrl}?error=userinfo_failed`);
+        return;
+      }
+
+      const rejoinUntil = await getRejoinBlockUntil({ email, kakaoId });
+      if (rejoinUntil) {
+        res.redirect(`${loginUrl}?error=recently_deleted&until=${formatRejoinDate(rejoinUntil)}`);
         return;
       }
 
@@ -865,6 +935,12 @@ router.get("/auth/naver/callback", async (req, res): Promise<void> => {
       .where(eq(usersTable.naverId, naverId));
 
     if (!existingUser) {
+      const rejoinUntil = await getRejoinBlockUntil({ email, naverId });
+      if (rejoinUntil) {
+        res.redirect(`${loginUrl}?error=recently_deleted&until=${formatRejoinDate(rejoinUntil)}`);
+        return;
+      }
+
       if (!email) {
         console.error("Naver user data missing email (required for signup):", naverData);
         if (pendingInviteToken) {
