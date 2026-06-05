@@ -1,0 +1,9 @@
+logs.json
+logs2.json
+latest_logs.json
+pickmeupdaddy-prod.sql
+pickmeupdaddy-prod.sql.gz
+.omc
+scripts/check-rls.mjs
+scripts/fix-remaining-rls.mjs
+scripts/fix-rls-security.sql

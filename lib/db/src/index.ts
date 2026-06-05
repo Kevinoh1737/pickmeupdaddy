@@ -10,14 +10,19 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+const connectionString = process.env.DATABASE_URL;
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   max: process.env.VERCEL ? 1 : 10,
-  // Matches both the direct host (db.*.supabase.co) and the Supavisor pooler
-  // (*.pooler.supabase.com); both present Supabase's self-signed cert chain.
-  ssl: process.env.DATABASE_URL?.includes("supabase.")
+  // Supabase (db.*.supabase.co / *.pooler.supabase.com) presents a self-signed
+  // chain, so verification must be relaxed. Neon (*.neon.tech) presents a valid
+  // CA-signed cert, so we verify properly. Anything else (e.g. local) gets no SSL.
+  ssl: connectionString?.includes("supabase.")
     ? { rejectUnauthorized: false }
-    : undefined,
+    : connectionString?.includes("neon.tech")
+      ? { rejectUnauthorized: true }
+      : undefined,
 });
 export const db = drizzle(pool, { schema });
 

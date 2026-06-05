@@ -13,7 +13,11 @@ if (!migrationUrl) {
 
 const pool = new Pool({
   connectionString: migrationUrl,
-  ssl: migrationUrl.includes("supabase.") ? { rejectUnauthorized: false } : undefined,
+  ssl: migrationUrl.includes("supabase.")
+    ? { rejectUnauthorized: false }
+    : migrationUrl.includes("neon.tech")
+      ? { rejectUnauthorized: true }
+      : undefined,
 });
 
 async function run() {
